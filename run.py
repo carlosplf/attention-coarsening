@@ -4,8 +4,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from torch_geometric.datasets import KarateClub
 from torch_geometric.utils import to_networkx
+from gcn_model.gcn import GCN
 
-# Rerefence: https://colab.research.google.com/drive/1h3-vJGRVloF5zStxL5I0rSy4ZUPNsjy8#scrollTo=Y9MOs8iSwKFD
 
 # check PyTorch installation
 os.environ['TORCH'] = torch.__version__
@@ -13,7 +13,7 @@ print(torch.__version__)
 
 
 def visualize_graph(G, color):
-    plt.figure(figsize=(7,7))
+    plt.figure(figsize=(7, 7))
     plt.xticks([])
     plt.yticks([])
     nx.draw_networkx(G, pos=nx.spring_layout(G, seed=42), with_labels=False,
@@ -22,7 +22,7 @@ def visualize_graph(G, color):
 
 
 def visualize_embedding(h, color, epoch=None, loss=None):
-    plt.figure(figsize=(7,7))
+    plt.figure(figsize=(7, 7))
     plt.xticks([])
     plt.yticks([])
     h = h.detach().cpu().numpy()
@@ -48,6 +48,28 @@ def visualize_dataset(dataset):
     visualize_graph(G, color=data.y)
 
 
+def train_model(model, data):
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
+    optimizer.zero_grad()
+    out, h = model(data.x, data.edge_index)
+    loss = criterion(out[data.train_mask], data.y[data.train_mask])
+    loss.backward()
+    optimizer.step()
+    return loss, h
+
+
 if __name__ == "__main__":
     dataset = load_dataset()
-    visualize_dataset(dataset=dataset)
+    # visualize_dataset(dataset=dataset)
+
+    data = dataset[0]
+    model = GCN(dataset)
+
+    for epoch in range(801):
+        loss, h = train_model(model, data)
+        if epoch % 10 == 0:
+            print(loss.item())
+
+    visualize_embedding(h, color=data.y, epoch=epoch, loss=loss)
